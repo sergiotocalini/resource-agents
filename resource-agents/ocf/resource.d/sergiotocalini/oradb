@@ -1,0 +1,139 @@
+#!/usr/bin/env sh
+#
+# Copyright (C) 2013-2014 Sergio Tocalini Joerg. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# Author(s):
+#     Sergio Tocalini Joerg <sergiotocalini at gmail.com>
+#
+#######################################################################
+# Initialization:
+
+: ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/heartbeat}
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_ROOT}/lib/sergiotocalini/orafunctions.sh
+
+#######################################################################
+# Defaults:
+OCF_RESKEY_auth_default="sysdba"
+OCF_RESKEY_owner_default="oracle"
+
+: ${OCF_RESKEY_auth=${OCF_RESKEY_auth_default}}
+: ${OCF_RESKEY_owner=${OCF_RESKEY_owner_default}}
+
+#######################################################################
+
+AUTH=${OCF_RESKEY_auth}
+OPT_DOWN=${OCF_RESKEY_shutdown}
+OPT_UP=${OCF_RESKEY_startup}
+SID=${OCF_RESKEY_sid}
+USER=${OCF_RESKEY_owner}
+
+usage() {
+    echo "Usage: ${0} action"
+    echo "\nAction:"
+    echo " start          Start Oracle Database Instance."
+    echo " stop           Stop Oracle Database Instance."
+    echo " status/monitor Returns TRUE if the Oracle Database Instance is MOUNTED"
+    echo "                and OPEN through a query by sqlplus, or if pmon_<SID>"
+    echo "                process is running."
+    echo " meta-data      Show meta data message."
+    echo " validate-all   Validate the instance parameters."
+    echo "\nPlease send any bug reports to sergiotocalini@gmail.com"
+}
+
+validate_all() {
+    SID="${1}"
+    USER="${2}"
+
+    ORAENV="/usr/local/bin/oraenv"
+    if [ ! -x ${ORAENV} ]; then
+        ocf_log err "${ORAENV} not found or is not an executable!"
+        exit ${OCF_ERR_ARGS}
+    fi
+
+    DBHOME="/usr/local/bin/dbhome"
+    if [ -x ${DBHOME} ]; then
+        ${DBHOME} ${SID} > /dev/null
+	if [ ${?} != 0]; then
+	    ocf_log err "${DBHOME} ${SID} - Oracle SID doesn't exist."
+	    exit ${OCF_ERR_ARGS}
+	fi
+    else
+        ocf_log err "${DBHOME} not found or is not an executable!"
+        exit ${OCF_ERR_CONFIGURED}
+    fi
+
+    /usr/bin/getent -s files passwd ${USER} > /dev/null
+    if [ ${?} != 0 ]; then
+        ocf_log err "User '${USER}' doesn't exist."
+        exit ${OCF_ERR_ARGS}
+    fi
+
+    exit ${OCF_SUCCESS}
+}
+
+case ${__OCF_ACTION} in
+    "meta-data")
+	cat `echo $0 | sed 's/^\(.*\)$/\1.metadata/'`
+        exit ${OCF_SUCCESS}
+	;;
+    "usage"|"help")
+	usage
+        exit ${OCF_SUCCESS}
+	;;
+    "start")
+	oradb_handler start "${SID}" "${OPT_UP}" "${AUTH}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\" options=\"${OPT_UP}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\" options=\"${OPT_UP}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "stop")
+	oradb_handler stop "${SID}" "${OPT_DOWN}" "${AUTH}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\" options=\"${OPT_DOWN}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\" options=\"${OPT_DOWN}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "status"|"monitor")
+	oradb_status "${SID}" "${AUTH}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" auth=\"${AUTH}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "validate-all")
+	validate_all "${SID}" "${USER}"
+	;;
+    *)
+        echo "Usage: $0 {start|stop|status|monitor|validate-all|meta-data}"
+        exit ${OCF_ERR_UNIMPLEMENTED}
+        ;;
+esac

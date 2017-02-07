@@ -1,0 +1,129 @@
+#!/usr/bin/env sh
+#
+# Copyright (C) 2013-2014 Sergio Tocalini Joerg. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# Author(s):
+#     Sergio Tocalini Joerg <sergiotocalini at gmail.com>
+#
+#######################################################################
+# Initialization:
+
+: ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/heartbeat}
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_ROOT}/lib/sergiotocalini/namedfunctions.sh
+
+#######################################################################
+# Defaults:
+OCF_RESKEY_owner_default="named"
+: ${OCF_RESKEY_owner=${OCF_RESKEY_owner_default}}
+OCF_RESKEY_path_default="/usr/local"
+: ${OCF_RESKEY_path=${OCF_RESKEY_path_default}}
+OCF_RESKEY_config_default="${OCF_RESKEY_path}/etc/named.conf"
+: ${OCF_RESKEY_config=${OCF_RESKEY_config_default}}
+
+#######################################################################
+
+OWNER=${OCF_RESKEY_owner}
+CONFIG=${OCF_RESKEY_config}
+NAMEDPATH=${OCF_RESKEY_path}
+PATH=${NAMEDPATH}/sbin:${NAMEDPATH}/bin:${PATH}
+
+usage() {
+    echo "Usage: ${0} action"
+    echo "\nAction:"
+    echo " start          Start named services."
+    echo " stop           Stop named services."
+    echo " status/monitor Returns TRUE if the named process is running."
+    echo " meta-data      Show meta data message."
+    echo " validate-all   Validate the instance parameters."
+    echo "\nPlease send any bug reports to sergiotocalini@gmail.com"
+}
+
+validate_all() {
+    PATH="${1}"
+    USER="${2}"
+
+    NAMED="${PATH}/sbin/named"
+    RNDC="${PATH}/sbin/rndc"
+    EXECS=( ${NAMED} ${RNDC} )
+    for i in ${EXECS[*]}; do
+	if [ ! -x ${i} ]; then
+            ocf_log err "${i} not found or is not an executable!"
+            exit ${OCF_ERR_ARGS}
+	fi
+    done
+
+    /usr/bin/getent -s files passwd ${USER} > /dev/null
+    if [ ${?} != 0 ]; then
+        ocf_log err "User '${USER}' doesn't exist."
+        exit ${OCF_ERR_ARGS}
+    fi
+
+    exit ${OCF_SUCCESS}
+}
+
+case ${__OCF_ACTION} in
+    "meta-data")
+	cat `echo $0 | sed 's/^\(.*\)$/\1.metadata/'`
+        exit ${OCF_SUCCESS}
+	;;
+    "usage"|"help")
+	usage
+        exit ${OCF_SUCCESS}
+	;;
+    "start")
+	named_handler start "${OWNER}" "${CONFIG}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${OWNER}\" options=\"-c ${CONFIG}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${OWNER}\" options=\"-c ${CONFIG}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "stop")
+	named_handler stop "${OWNER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${OWNER}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${OWNER}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "status"|"monitor")
+	named_status "${OWNER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${OWNER}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${OWNER}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "validate-all")
+	validate_all "${NAMEDPATH}" "${OWNER}"
+	;;
+    *)
+        echo "Usage: $0 {start|stop|status|monitor|validate-all|meta-data}"
+        exit ${OCF_ERR_UNIMPLEMENTED}
+        ;;
+esac

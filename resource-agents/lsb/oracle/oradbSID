@@ -1,0 +1,37 @@
+#!/usr/bin/env ksh
+#
+# oradb<SID>           Start up the <SID> Instance of Oracle database
+#
+# chkconfig:           2345 55 25
+# description:         <SID> instance of Oracle database.
+#
+# processname:         oradb<SID>
+# pidfile:             /var/run/oracle/oradb<SID>.pid
+
+### BEGIN INIT INFO
+# Provides:            oradb<SID>
+# Required-Start:      $local_fs $network $syslog
+# Required-Stop:       $local_fs $syslog
+# Should-Start:        $syslog
+# Should-Stop:         $network $syslog
+# Default-Start:       3 5
+# Default-Stop:        0 1 2 4 6
+# Short-Description:   Start up <SID> instance of Oracle database
+# Description:         <SID> instance of Oracle database.
+### END INIT INFO
+
+. /etc/rc.d/init.d/orafunctions.sh
+
+SID="<SID>"
+
+case ${1} in
+    "start")
+	oradb_handler start "${SID}"
+	;;
+    "stop")
+	oradb_handler stop "${SID}" "immediate"
+	;;
+    "status")
+	oradb_status "${SID}"
+	;;
+esac

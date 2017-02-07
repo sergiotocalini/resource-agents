@@ -1,0 +1,137 @@
+#!/usr/bin/env sh
+#
+# Copyright (C) 2013-2014 Sergio Tocalini Joerg. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# Author(s):
+#     Sergio Tocalini Joerg <sergiotocalini at gmail.com>
+#
+#######################################################################
+# Initialization:
+
+: ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/heartbeat}
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_ROOT}/lib/sergiotocalini/orafunctions.sh
+
+#######################################################################
+# Defaults:
+OCF_RESKEY_owner_default="oracle"
+OCF_RESKEY_sid_default="+ASM"
+
+: ${OCF_RESKEY_owner=${OCF_RESKEY_owner_default}}
+: ${OCF_RESKEY_sid=${OCF_RESKEY_sid_default}}
+
+#######################################################################
+
+LSNR=${OCF_RESKEY_listener}
+SID=${OCF_RESKEY_sid}
+USER=${OCF_RESKEY_owner}
+
+usage() {
+    echo "Usage: ${0} action"
+    echo "\nAction:"
+    echo " start          Start Oracle Listener Instance."
+    echo " stop           Stop Oracle Listener Instance."
+    echo " status/monitor Returns TRUE if the Oracle Listener Instance is receiving"
+    echo "                incoming client connection requests and manages the"
+    echo "                traffic of these requests to the database server."
+    echo " meta-data      Show meta data message."
+    echo " validate-all   Validate the instance parameters."
+    echo "\nPlease send any bug reports to sergiotocalini@gmail.com"
+}
+
+validate_all() {
+    SID="${1}"
+    USER="${2}"
+
+    ORAENV="/usr/local/bin/oraenv"
+    if [ ! -x ${ORAENV} ]; then
+        ocf_log err "${ORAENV} not found or is not an executable!"
+        exit ${OCF_ERR_ARGS}
+    fi
+
+    DBHOME="/usr/local/bin/dbhome"
+    if [ -x ${DBHOME} ]; then
+        ${DBHOME} ${SID} > /dev/null
+	if [ ${?} != 0]; then
+	    ocf_log err "${DBHOME} ${SID} - Oracle SID doesn't exist."
+	    exit ${OCF_ERR_ARGS}
+	fi
+    else
+        ocf_log err "${DBHOME} not found or is not an executable!"
+        exit ${OCF_ERR_CONFIGURED}
+    fi
+
+    /usr/bin/getent -s files passwd ${USER} > /dev/null
+    if [ ${?} != 0 ]; then
+        ocf_log err "User '${USER}' doesn't exist."
+        exit ${OCF_ERR_ARGS}
+    fi
+
+    exit ${OCF_SUCCESS}
+}
+
+case ${__OCF_ACTION} in
+    "meta-data")
+	cat `echo $0 | sed 's/^\(.*\)$/\1.metadata/'`
+        exit ${OCF_SUCCESS}
+	;;
+    "usage"|"help")
+	usage
+        exit ${OCF_SUCCESS}
+	;;
+    "start")
+	oraln_handler start "${LSNR}" "${SID}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "stop")
+	oraln_handler stop "${LSNR}" "${SID}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "status"|"monitor")
+	oraln_status "${LSNR}" "${SID}" "${USER}"
+	rval="${?}"
+	if [[ ${rval} == 0 ]]; then
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: OK! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+            exit ${OCF_SUCCESS}
+	else
+	    ocf_log info "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION: Failed! (owner=\"${USER}\" sid=\"${SID}\" lsnr=\"${LSNR}\")"
+	    exit ${OCF_NOT_RUNNING}
+	fi
+	;;
+    "validate-all")
+	validate_all "${SID}" "${USER}"
+	;;
+    *)
+        echo "Usage: $0 {start|stop|status|monitor|validate-all|meta-data}"
+        exit ${OCF_ERR_UNIMPLEMENTED}
+        ;;
+esac

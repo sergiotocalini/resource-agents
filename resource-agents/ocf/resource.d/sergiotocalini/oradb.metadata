@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<resource-agent name="oradb">
+  <version>1.0</version>
+  
+  <longdesc lang="en">
+    Manage the Oracle Database Instance to startup and shutdown with a guarantee of failover.
+  </longdesc>
+  <shortdesc lang="en">
+    Oracle Database Instance management.
+  </shortdesc>
+  
+  <parameters>
+    <parameter name="sid" unique="1" required="1">
+      <longdesc lang="en">
+        Oracle System ID (SID) of Oracle Instance.
+	The SID is used to uniquely identify a particular database on a system.
+	Remember that the SID is case sensitive in Unix / Linux environments.
+      </longdesc>
+      <shortdesc lang="en">
+        Oracle SID.
+      </shortdesc>
+      <content type="string"/>
+    </parameter>
+
+    <parameter name="owner" unique="1">
+      <longdesc lang="en">
+	Oracle username. This is user will be the owner of all Oracle Database Instance process.
+      </longdesc>
+      <shortdesc lang="en">
+        Oracle username.
+      </shortdesc>
+      <content type="string" default="oracle"/>
+    </parameter>
+
+    <parameter name="auth" unique="1">
+      <longdesc lang="en">
+	Administrative account of database.
+	Account to perform administrative functions such as starting up and shutting down the database.
+      </longdesc>
+      <shortdesc lang="en">
+        Administrative account.
+      </shortdesc>
+      <content type="string" default="sysdba"/>
+    </parameter>
+    
+    <parameter name="shutdown" unique="1">
+      <longdesc lang="en">
+        Shutdown options for the Oracle Database Instance.
+	There are options as to the method you use to shutdown an instance of your database.
+      </longdesc>
+      <shortdesc lang="en">
+        Shutdown options.
+      </shortdesc>
+      <content type="string" default=""/>
+    </parameter>
+    
+    <parameter name="startup" unique="1">
+      <longdesc lang="en">
+        Startup options for the Oracle Database Instance.
+	There are options as to the method you use to startup an instance of your database.
+      </longdesc>
+      <shortdesc lang="en">
+        Startup options.
+      </shortdesc>
+      <content type="string" default=""/>
+    </parameter>    
+  </parameters>
+  
+  <actions>
+    <action name="start"        timeout="60s"/>
+    <action name="stop"         timeout="60s"/>
+    <action name="monitor"      timeout="60s" interval="5m"/>
+    <action name="meta-data"    timeout="20s"/>
+    <action name="validate-all" timeout="20s" interval="5m"/>
+  </actions>
+  
+</resource-agent>

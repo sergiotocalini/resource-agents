@@ -1,0 +1,38 @@
+#!/usr/bin/env ksh
+#
+# oraln<SID>           Start up the <SID> listener of Oracle database
+#
+# chkconfig:           2345 55 25
+# description:         <SID> listener of Oracle database.
+#
+# processname:         oraln<SID>
+# pidfile:             /var/run/oracle/oraln<SID>.pid
+
+### BEGIN INIT INFO
+# Provides:            oraln<SID>
+# Required-Start:      $local_fs $network $syslog
+# Required-Stop:       $local_fs $syslog
+# Should-Start:        $syslog
+# Should-Stop:         $network $syslog
+# Default-Start:       3 5
+# Default-Stop:        0 1 2 4 6
+# Short-Description:   Start up <SID> listener of Oracle database
+# Description:         <SID> listener of Oracle database.
+### END INIT INFO
+
+. /etc/rc.d/init.d/orafunctions.sh
+
+SID="<SID>"
+LSNR="LISTENER_<SID>"
+
+case ${1} in
+    "start")
+	oraln_handler start "${LSNR}" "${SID}"
+	;;
+    "stop")
+	oraln_handler stop "${LSNR}" "${SID}"
+	;;
+    "status")
+	oraln_status "${LSNR}" "${SID}"
+	;;
+esac

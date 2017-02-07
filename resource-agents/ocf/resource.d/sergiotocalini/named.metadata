@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<resource-agent name="named">
+  <version>1.0</version>
+  
+  <longdesc lang="en">
+    Manage the Named server to startup and shutdown with a guarantee of failover.
+  </longdesc>
+  <shortdesc lang="en">
+    Named management.
+  </shortdesc>
+  
+  <parameters>
+    <parameter name="owner" unique="1">
+      <longdesc lang="en">
+	Named username. This is user will be the owner of all named process.
+      </longdesc>
+      <shortdesc lang="en">
+        Named username.
+      </shortdesc>
+      <content type="string" default="named"/>
+    </parameter>
+    <parameter name="path" unique="1">
+      <longdesc lang="en">
+	Named path. This is the path of of all named binaries.
+      </longdesc>
+      <shortdesc lang="en">
+        Named path.
+      </shortdesc>
+      <content type="string" default="/usr/local"/>
+    </parameter>
+    <parameter name="config" unique="1">
+      <longdesc lang="en">
+	Named config. This is the config file of named service.
+      </longdesc>
+      <shortdesc lang="en">
+        Named config.
+      </shortdesc>
+      <content type="string" default="${path}/etc/named.conf"/>
+    </parameter>
+  </parameters>
+  
+  <actions>
+    <action name="start"        timeout="60s"/>
+    <action name="stop"         timeout="60s"/>
+    <action name="monitor"      timeout="60s" interval="5m"/>
+    <action name="meta-data"    timeout="20s"/>
+    <action name="validate-all" timeout="20s" interval="5m"/>
+  </actions>
+  
+</resource-agent>
